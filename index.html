@@ -1,37 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Conduit - Land Page</title>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Conduit Taskpane</title>
+
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 16px;
+      line-height: 1.4;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      border: 1px solid #ddd;
+    }
+
+    .checking {
+      background: #fff8dc;
+    }
+
+    .ok {
+      background: #e8f8ee;
+      border-color: #8fd19e;
+    }
+
+    .error {
+      background: #fdeaea;
+      border-color: #e29b9b;
+    }
+
+    code {
+      background: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body>
-<img src="logo.png" style="width: 8rem;"/>
-<h1>Conduit</h1>
-<p>This page is being hosted on Github Pages via <a href="https://dro248.github.io/conduit/">https://dro248.github.io/conduit/</a></p>
+  <h1>Conduit</h1>
+  <p>Looking for the Conduit Desktop Gateway on localhost.</p>
 
-<input type="text" id="subdomain_textbox">
-<button id="go_button" onclick="go_click()">Go</button>
+  <div id="gateway-status" class="status checking">
+    Checking gateway...
+  </div>
 
-<script>
-const textbox = document.getElementById("subdomain_textbox")
-const go_button = document.getElementById("go_button")
+  <button id="retry-button">Retry</button>
 
+  <script>
+    const CANDIDATE_GATEWAYS = [
+      "http://127.0.0.1:8765",
+      "http://localhost:8765"
+    ];
 
-function go_click() {
-    // const current_domain = window.location.hostname
-    const current_domain = 'dro248.dev'
-    const subdomain = textbox.value
+    const statusEl = document.getElementById("gateway-status");
+    const retryButton = document.getElementById("retry-button");
 
-    console.log('current domain:', current_domain)
-    console.log('subdomain:', subdomain)
+    function setStatus(kind, html) {
+      statusEl.className = `status ${kind}`;
+      statusEl.innerHTML = html;
+    }
 
-    debugger
+    async function checkGatewayAt(baseUrl) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-    window.location.href = `https://conduit-example.dro248.dev`
-    // window.location.href = `https://conduit-${subdomain}.${current_domain}`
-}
-</script>
+      try {
+        const response = await fetch(`${baseUrl}/gateway/health`, {
+          method: "GET",
+          signal: controller.signal,
+          headers: {
+            "Accept": "application/json",
+            "X-Conduit-Client": "excel-taskpane"
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.product !== "Conduit Desktop Gateway") {
+          throw new Error("Unexpected service response");
+        }
+
+        return {
+          found: true,
+          baseUrl,
+          data
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    async function findGateway() {
+      setStatus(
+        "checking",
+        "Checking for gateway at <code>127.0.0.1:8765</code>..."
+      );
+
+      for (const baseUrl of CANDIDATE_GATEWAYS) {
+        try {
+          const result = await checkGatewayAt(baseUrl);
+          return result;
+        } catch (err) {
+          // Try next candidate.
+        }
+      }
+
+      return {
+        found: false
+      };
+    }
+
+    async function updateGatewayStatus() {
+      const result = await findGateway();
+
+      if (result.found) {
+        setStatus(
+          "ok",
+          `
+            <strong>Gateway found.</strong><br>
+            URL: <code>${result.baseUrl}</code><br>
+            Product: <code>${result.data.product}</code><br>
+            Version: <code>${result.data.version}</code><br>
+            Status: <code>${result.data.status}</code>
+          `
+        );
+      } else {
+        setStatus(
+          "error",
+          `
+            <strong>Gateway not found.</strong><br>
+            Make sure the desktop gateway is running at
+            <code>http://127.0.0.1:8765</code>.
+          `
+        );
+      }
+    }
+
+    retryButton.addEventListener("click", updateGatewayStatus);
+
+    Office.onReady(() => {
+      updateGatewayStatus();
+    });
+  </script>
 </body>
 </html>

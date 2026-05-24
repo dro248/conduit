@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Conduit - Land Page</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+<img src="logo.png" style="width: 8rem;"/>
+<h1>Conduit</h1>
+<p>This page is being hosted on Github Pages via <a href="https://dro248.github.io/conduit/">https://dro248.github.io/conduit/</a></p>
+
+<input type="text" id="subdomain_textbox">
+<button id="go_button" onclick="go_click()">Go</button>
+
+<script>
+const textbox = document.getElementById("subdomain_textbox")
+const go_button = document.getElementById("go_button")
+
+
+function go_click() {
+    // const current_domain = window.location.hostname
+    const current_domain = 'dro248.dev'
+    const subdomain = textbox.value
+
+    console.log('current domain:', current_domain)
+    console.log('subdomain:', subdomain)
+
+    debugger
+
+    window.location.href = `https://conduit-example.dro248.dev`
+    // window.location.href = `https://conduit-${subdomain}.${current_domain}`
+}
+</script>
+</body>
+</html>
